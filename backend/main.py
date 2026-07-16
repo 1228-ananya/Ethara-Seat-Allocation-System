@@ -248,7 +248,7 @@ def list_seats(
     if status:
         query = query.filter(Seat.status == status)
         
-    seats = query.all()
+    seats = query.order_by(Seat.seat_number).all()
     
     # Format and join occupant info
     return [SeatSchema.from_orm(s) for s in seats]

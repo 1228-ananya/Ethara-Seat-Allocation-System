@@ -59,9 +59,9 @@ export default function FloorPlanView({
   }, [seatsData]);
 
   // Filter seats based on current floor and block
-  const filteredSeats = seatsData.filter(
-    (s) => s.floor === activeFloor && s.block === activeBlock
-  );
+  const filteredSeats = seatsData
+    .filter((s) => s.floor === activeFloor && s.block === activeBlock)
+    .sort((a, b) => a.seat_number.localeCompare(b.seat_number, undefined, { numeric: true, sensitivity: 'base' }));
 
   // Recommendation logic: If we have selected a target employee, check if they have team members.
   // We want to highlight seats on blocks where their project members are sitting.

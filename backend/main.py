@@ -42,7 +42,7 @@ def startup_event():
             seat_count = db.query(Seat).count()
             if seat_count == 0:
                 print("Database is empty! Auto-seeding initial datasets in the background...")
-                seed_db()
+                seed_db(drop_tables=False)
                 print("Database background auto-seeding completed.")
         except Exception as e:
             print(f"Database background startup check failed/skipped: {e}")

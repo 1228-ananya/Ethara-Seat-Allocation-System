@@ -58,10 +58,13 @@ PROJECT_NAMES = [
     ("Project Nebula", "NEB", "Engineering", "F2"),
 ]
 
-def seed_db():
-    print("Re-creating database tables...")
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+def seed_db(drop_tables=True):
+    if drop_tables:
+        print("Re-creating database tables...")
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
+    else:
+        print("Using existing database tables...")
 
     db: Session = SessionLocal()
     try:

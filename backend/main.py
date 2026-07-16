@@ -162,7 +162,7 @@ def list_employees(
         
     total = query.count()
     offset = (page - 1) * limit
-    results = query.order_by(Employee.id.desc()).offset(offset).limit(limit).all()
+    results = query.order_by(Employee.name.asc()).offset(offset).limit(limit).all()
     
     # Format Response with project/seat manually to optimize
     # SQLAlchemy lazy-loads them, but it's fine for small page limits (50)

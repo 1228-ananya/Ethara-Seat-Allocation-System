@@ -6,6 +6,10 @@ from sqlalchemy.orm import sessionmaker
 # Default to local SQLite database in the backend directory
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./ethara_seat_allocation.db")
 
+# Render database URLs start with postgres://, but SQLAlchemy expects postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 # SQLite needs connect_args={"check_same_thread": False} for FastAPI async contexts
 connect_args = {}
 if DATABASE_URL.startswith("sqlite"):

@@ -27,6 +27,25 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Ethara Seat Allocation & Project Mapping API")
 
+@app.on_event("startup")
+def startup_event():
+    # Automatically seed the database if it is empty
+    from backend.db.database import SessionLocal
+    from backend.db.models import Seat
+    from backend.db.seed import seed_db
+    
+    db = SessionLocal()
+    try:
+        seat_count = db.query(Seat).count()
+        if seat_count == 0:
+            print("Database is empty! Auto-seeding initial datasets...")
+            seed_db()
+            print("Database auto-seeding completed.")
+    except Exception as e:
+        print(f"Database startup check failed/skipped: {e}")
+    finally:
+        db.close()
+
 # Enable CORS for frontend integration
 app.add_middleware(
     CORSMiddleware,

@@ -65,23 +65,26 @@ app.add_middleware(
 
 @app.get("/api/dashboard/summary", response_model=DashboardSummary)
 def get_dashboard_summary(db: Session = Depends(get_db)):
-    total_emp = db.query(Employee).count()
-    total_p = db.query(Project).count()
-    total_s = db.query(Seat).count()
-    occ_s = db.query(Seat).filter(Seat.status == "Occupied").count()
-    maint_s = db.query(Seat).filter(Seat.status == "Maintenance").count()
-    avail_s = db.query(Seat).filter(Seat.status == "Available").count()
-    rem_emp = db.query(Employee).filter(Employee.status == "Remote").count()
-    nj_emp = db.query(Employee).filter(Employee.status == "New Joiner").count()
+    # Fetch all seats and employee metadata in single round-trips
+    seats_data = db.query(Seat.floor, Seat.status).all()
+    employees_data = db.query(Employee.status, Employee.project_id, Employee.seat_id).all()
+    active_projects = db.query(Project.id, Project.name, Project.code).filter(Project.status == "Active").all()
+
+    # In-memory calculations for seats
+    total_s = len(seats_data)
+    occ_s = sum(1 for s in seats_data if s[1] == "Occupied")
+    maint_s = sum(1 for s in seats_data if s[1] == "Maintenance")
+    avail_s = sum(1 for s in seats_data if s[1] == "Available")
     
     util_rate = round((occ_s / (total_s - maint_s)) * 100, 2) if (total_s - maint_s) > 0 else 0.0
 
-    # Floor-wise utilization
+    # Floor-wise utilization computed in-memory
     floor_util = {}
     for floor in [1, 2, 3, 4, 5]:
-        f_total = db.query(Seat).filter(Seat.floor == floor).count()
-        f_maint = db.query(Seat).filter(Seat.floor == floor, Seat.status == "Maintenance").count()
-        f_occ = db.query(Seat).filter(Seat.floor == floor, Seat.status == "Occupied").count()
+        f_seats = [s for s in seats_data if s[0] == floor]
+        f_total = len(f_seats)
+        f_maint = sum(1 for s in f_seats if s[1] == "Maintenance")
+        f_occ = sum(1 for s in f_seats if s[1] == "Occupied")
         usable = f_total - f_maint
         f_rate = round((f_occ / usable) * 100, 2) if usable > 0 else 0.0
         floor_util[f"Floor {floor}"] = {
@@ -91,21 +94,30 @@ def get_dashboard_summary(db: Session = Depends(get_db)):
             "rate": f_rate
         }
 
-    # Project-wise seat allocation
+    # In-memory calculations for employees
+    total_emp = len(employees_data)
+    rem_emp = sum(1 for e in employees_data if e[0] == "Remote")
+    nj_emp = sum(1 for e in employees_data if e[0] == "New Joiner")
+    total_p = len(active_projects)
+
+    # Pre-group employee project stats in-memory for instant lookup:
+    proj_stats = {}
+    for status, proj_id, seat_id in employees_data:
+        if proj_id is not None:
+            if proj_id not in proj_stats:
+                proj_stats[proj_id] = {"allocated": 0, "total": 0}
+            proj_stats[proj_id]["total"] += 1
+            if seat_id is not None:
+                proj_stats[proj_id]["allocated"] += 1
+
+    # Project-wise seat allocation computed in-memory
     proj_alloc = {}
-    active_projects = db.query(Project).filter(Project.status == "Active").all()
-    for p in active_projects:
-        # Number of employees in this project who have seats
-        p_seats = db.query(Employee).filter(
-            Employee.project_id == p.id,
-            Employee.seat_id.isnot(None)
-        ).count()
-        # Total employees in project
-        p_total = db.query(Employee).filter(Employee.project_id == p.id).count()
-        proj_alloc[p.name] = {
-            "allocated": p_seats,
-            "total_members": p_total,
-            "code": p.code
+    for p_id, p_name, p_code in active_projects:
+        stats = proj_stats.get(p_id, {"allocated": 0, "total": 0})
+        proj_alloc[p_name] = {
+            "allocated": stats["allocated"],
+            "total_members": stats["total"],
+            "code": p_code
         }
 
     return {

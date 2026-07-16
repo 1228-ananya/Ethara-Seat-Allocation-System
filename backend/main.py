@@ -146,7 +146,8 @@ def list_employees(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100)
 ):
-    query = db.query(Employee)
+    from sqlalchemy.orm import joinedload
+    query = db.query(Employee).options(joinedload(Employee.project), joinedload(Employee.seat))
     
     if search:
         query = query.filter(
@@ -238,7 +239,8 @@ def list_seats(
     block: Optional[str] = None,
     status: Optional[str] = None
 ):
-    query = db.query(Seat)
+    from sqlalchemy.orm import joinedload
+    query = db.query(Seat).options(joinedload(Seat.employee).joinedload(Employee.project))
     if floor is not None:
         query = query.filter(Seat.floor == floor)
     if block:

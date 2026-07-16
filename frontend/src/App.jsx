@@ -45,29 +45,34 @@ export default function App() {
     try {
       setLoading(true);
       
-      // 1. Dashboard summary
-      const sumRes = await fetch(`${API_BASE}/dashboard/summary`);
-      const sumVal = await sumRes.json();
+      // Fetch all endpoints concurrently to optimize page load speeds
+      const [sumVal, histVal, seatsVal, projVal, unallocVal] = await Promise.all([
+        fetch(`${API_BASE}/dashboard/summary`).then(r => {
+          if (!r.ok) throw new Error('Dashboard summary load failed');
+          return r.json();
+        }),
+        fetch(`${API_BASE}/seats/history?limit=10`).then(r => {
+          if (!r.ok) throw new Error('History log load failed');
+          return r.json();
+        }),
+        fetch(`${API_BASE}/seats`).then(r => {
+          if (!r.ok) throw new Error('Seats mapping load failed');
+          return r.json();
+        }),
+        fetch(`${API_BASE}/projects`).then(r => {
+          if (!r.ok) throw new Error('Projects load failed');
+          return r.json();
+        }),
+        fetch(`${API_BASE}/employees?status=New%20Joiner&limit=100`).then(r => {
+          if (!r.ok) throw new Error('Unallocated queue load failed');
+          return r.json();
+        })
+      ]);
+
       setSummaryData(sumVal);
-
-      // 2. Audit history log
-      const histRes = await fetch(`${API_BASE}/seats/history?limit=10`);
-      const histVal = await histRes.json();
       setHistoryData(histVal);
-
-      // 3. Seats (all floor maps)
-      const seatsRes = await fetch(`${API_BASE}/seats`);
-      const seatsVal = await seatsRes.json();
       setSeatsData(seatsVal);
-
-      // 4. Projects
-      const projRes = await fetch(`${API_BASE}/projects`);
-      const projVal = await projRes.json();
       setProjects(projVal);
-
-      // 5. Unallocated Employees (both New Joiner and Remote statuses)
-      const unallocRes = await fetch(`${API_BASE}/employees?status=New%20Joiner&limit=100`);
-      const unallocVal = await unallocRes.json();
       setUnallocatedEmployees(unallocVal.results);
 
       setLoading(false);

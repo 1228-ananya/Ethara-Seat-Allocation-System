@@ -188,57 +188,54 @@ def seed_db():
                     seat_id = allocated_seat.id
                     allocated_seat.status = "Occupied"
                     
-                    employee = Employee(
-                        name=name,
-                        email=email,
-                        role=role,
-                        join_date=join_date,
-                        status=status,
-                        project_id=proj_id,
-                        seat_id=seat_id
-                    )
-                    employees.append(employee)
+                    employees.append({
+                        "name": name,
+                        "email": email,
+                        "role": role,
+                        "join_date": join_date,
+                        "status": status,
+                        "project_id": proj_id,
+                        "seat_id": seat_id
+                    })
                     
                     # Create allocation history log
-                    histories.append(AllocationHistory(
-                        employee_id=idx + 1,  # SQLite auto-increment starts at 1
-                        employee_name=name,
-                        seat_id=seat_id,
-                        seat_number=allocated_seat.seat_number,
-                        project_id=proj_id,
-                        project_name=proj.name,
-                        action="Allocate",
-                        performed_at=datetime.datetime.utcnow() - datetime.timedelta(days=random.randint(0, 100)),
-                        performed_by="System Seeder"
-                    ))
+                    histories.append({
+                        "employee_id": idx + 1,  # SQLite/Postgre auto-increment starts at 1
+                        "employee_name": name,
+                        "seat_id": seat_id,
+                        "seat_number": allocated_seat.seat_number,
+                        "project_id": proj_id,
+                        "project_name": proj.name,
+                        "action": "Allocate",
+                        "performed_at": datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(days=random.randint(0, 100)),
+                        "performed_by": "System Seeder"
+                    })
                 else:
                     # No seats left! fallback to Remote
                     status = "Remote"
-                    employee = Employee(
-                        name=name,
-                        email=email,
-                        role=role,
-                        join_date=join_date,
-                        status=status,
-                        project_id=proj_id,
-                        seat_id=None
-                    )
-                    employees.append(employee)
+                    employees.append({
+                        "name": name,
+                        "email": email,
+                        "role": role,
+                        "join_date": join_date,
+                        "status": status,
+                        "project_id": proj_id,
+                        "seat_id": None
+                    })
 
             elif idx < (allocated_count + remote_count):
                 # Remote employees (have projects, no seats)
                 status = "Remote"
                 proj, _ = random.choice(projects)
-                employee = Employee(
-                    name=name,
-                    email=email,
-                    role=role,
-                    join_date=join_date,
-                    status=status,
-                    project_id=proj.id,
-                    seat_id=None
-                )
-                employees.append(employee)
+                employees.append({
+                    "name": name,
+                    "email": email,
+                    "role": role,
+                    "join_date": join_date,
+                    "status": status,
+                    "project_id": proj.id,
+                    "seat_id": None
+                })
 
             elif idx < (allocated_count + remote_count + new_joiner_count):
                 # Active/New joiners without seats or projects yet
@@ -254,46 +251,42 @@ def seed_db():
                     proj_id = proj.id
 
                 status = "New Joiner"
-                employee = Employee(
-                    name=name,
-                    email=email,
-                    role=role,
-                    join_date=join_date,
-                    status=status,
-                    project_id=proj_id,
-                    seat_id=None
-                )
-                employees.append(employee)
+                employees.append({
+                    "name": name,
+                    "email": email,
+                    "role": role,
+                    "join_date": join_date,
+                    "status": status,
+                    "project_id": proj_id,
+                    "seat_id": None
+                })
 
             else:
                 # Resigned employees (no project, no seat)
                 status = "Resigned"
-                employee = Employee(
-                    name=name,
-                    email=email,
-                    role=role,
-                    join_date=join_date,
-                    status=status,
-                    project_id=None,
-                    seat_id=None
-                )
-                employees.append(employee)
+                employees.append({
+                    "name": name,
+                    "email": email,
+                    "role": role,
+                    "join_date": join_date,
+                    "status": status,
+                    "project_id": None,
+                    "seat_id": None
+                })
 
         print(f"Saving {len(employees)} employees...")
-        db.bulk_save_objects(employees)
+        db.bulk_insert_mappings(Employee, employees)
         db.commit()
 
         # Update seat statuses in db for those that got occupied
         print("Saving seat occupancy updates...")
-        # Since we modified the instances in available_seats_by_floor, we need to save the modified seats
-        # We can just update the seats that were allocated
-        for s in db_seats:
-            if s.status == "Occupied":
-                db.add(s)
-        db.commit()
+        occupied_seat_ids = [s.id for s in db_seats if s.status == "Occupied"]
+        if occupied_seat_ids:
+            db.query(Seat).filter(Seat.id.in_(occupied_seat_ids)).update({"status": "Occupied"}, synchronize_session=False)
+            db.commit()
 
         print(f"Saving {len(histories)} allocation history logs...")
-        db.bulk_save_objects(histories)
+        db.bulk_insert_mappings(AllocationHistory, histories)
         db.commit()
 
         print("Verification of seeded data:")

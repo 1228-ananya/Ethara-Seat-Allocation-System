@@ -1,0 +1,15 @@
+# Python
+backend/venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+test_ethara.db
+ethara_seat_allocation.db
+
+# Node / React
+frontend/node_modules/
+frontend/dist/
+.env
+
+# OS
+.DS_Store

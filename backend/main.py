@@ -349,8 +349,9 @@ def release_seat(req: ReleaseRequest, db: Session = Depends(get_db)):
         db.commit()
         return {"status": "success", "message": "Cleaned up orphaned occupied seat"}
         
-    # Release
+    # Release and return employee to unallocated onboarding queue
     employee.seat_id = None
+    employee.status = "New Joiner"
     seat.status = "Available"
     
     history_entry = AllocationHistory(
@@ -387,6 +388,7 @@ def bulk_release_seats(req: BulkReleaseRequest, db: Session = Depends(get_db)):
         employee = db.query(Employee).filter(Employee.seat_id == seat.id).first()
         if employee:
             employee.seat_id = None
+            employee.status = "New Joiner"
             db.add(employee)
             
             histories.append(AllocationHistory(
@@ -425,6 +427,7 @@ def toggle_seat_maintenance(req: MaintenanceRequest, db: Session = Depends(get_d
             employee = db.query(Employee).filter(Employee.seat_id == seat.id).first()
             if employee:
                 employee.seat_id = None
+                employee.status = "New Joiner"
                 db.add(employee)
                 db.add(AllocationHistory(
                     employee_id=employee.id,
